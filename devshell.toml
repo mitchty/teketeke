@@ -1,0 +1,10 @@
+# https://numtide.github.io/devshell
+[[commands]]
+package = "ollama"
+name = "ollama"
+help = "ollama command et al"
+
+# [devshell]
+# packages = [
+#   "python311", # 3.11
+# ]

@@ -1,0 +1,95 @@
+* Teketeke
+
+What is it? In short its just a toy langchain ollama python app to (ab)use pytest with to validate inputs with expected prompt outputs.
+
+** How to use
+
+This isn't drop and go however. You'll need:
+- Ollama installed and running somewhere (locally assumed)
+- Models installed (mistral is the default for no real reason than cause)
+- You'll need the following models pulled into ollama:
+  - nomic-embed-text
+  - mistral
+
+(Note: if you use nix and direnv most of the above is already done)
+
+Once you have all that sorted out you'll need to populate the data dir with pdf's to ingest/test against. I'll add more doc loaders as I get bored in meetings. As well as figure out how to make the rag db be pluggable for now chroma only cause it was easy peasy lemon squeezy.
+
+*** Add pdfs to the RAG db
+
+How you get them locally is up to you. Then load them into the RAG db. For this readme lets use the DND basic rulebook cause its gihugic and I don't know anything about DND which is my reason for using the llm model+rag to poke at it with a stick. Note this can take a while as the nomic-embed-text model isn't especially fast. Go grab a coffee or take the dog for a walk or watch paint dry.
+
+#+begin_src sh
+$ (cd data && curl -sLO https://media.wizards.com/2018/dnd/downloads/DnD_BasicRules_2018.pdf)
+$ ./repopulate.py
+2024-07-15 12:01:15.518715912 [W:onnxruntime:Default, onnxruntime_pybind_state.cc:1983 CreateInferencePybindStateModule] Init provider bridge failed.
+adding 1163 new documents to rag db
+/nix/store/5c9mmzc9wjqzi6pkl1b4xcxy8j46ah7d-python3-3.11.9-env/lib/python3.11/site-packages/langchain_core/_api/deprecation.py:139: LangChainDeprecationWarning: Since Chroma 0.4.x the manual persistence method is no longer supported as docs are automatically persisted.
+  warn_deprecated(
+#+end_src
+
+*** Query the RAG db+llm model(s)
+
+Then you can abuse the llm model(s) and rag to get responses and get a general idea where they are from in the input data sources:
+
+#+begin_src sh
+$ noglob env MODELS="mistral llama3" ./query.py what color dragons are in the player handbook (Answer with the color names only)
+2024-07-15 12:07:23.224478075 [W:onnxruntime:Default, onnxruntime_pybind_state.cc:1983 CreateInferencePybindStateModule] Init provider bridge failed.
+llm: mistral
+response:  Red, Adult Red Dragon is mentioned. The text does not specify if other colors are present or not in the player handbook.
+sources: ['data/DnD_BasicRules_2018.pdf:161:0', 'data/DnD_BasicRules_2018.pdf:114:0', 'data/DnD_BasicRules_2018.pdf:19:0', 'data/DnD_BasicRules_2018.pdf:114:3', 'data/DnD_BasicRules_2018.pdf:16:2']
+llm: llama3
+response: Red
+sources: ['data/DnD_BasicRules_2018.pdf:161:0', 'data/DnD_BasicRules_2018.pdf:114:0', 'data/DnD_BasicRules_2018.pdf:19:0', 'data/DnD_BasicRules_2018.pdf:114:3', 'data/DnD_BasicRules_2018.pdf:16:2']
+#+end_src
+
+Note *noglob* is a zsh-ism, and that if you don't set the *MODELS* env var *mistral* is assumed to be the default. I have no idea if the answer is correct or not DND fanatics can tell me that. For the readme i'll just assume its correct and that the AI llm model is omniscient as is tradition.
+
+Also of note, as I was writing this readme, I reran the above with zero changes and now I don't know what is real or not. LLM's/GPT's are analog computation or I'm in a multiverse. In either case with ai there be literal dragons, not sure of the color however I'll say grey.
+
+#+begin_src sh
+$ noglob env MODELS="mistral llama3" ./query.py what color dragons are in the player handbook (Answer with the color names only)
+2024-07-15 12:11:06.316248467 [W:onnxruntime:Default, onnxruntime_pybind_state.cc:1983 CreateInferencePybindStateModule] Init provider bridge failed.
+llm: mistral
+response:  Red, Green
+sources: ['data/DnD_BasicRules_2018.pdf:161:0', 'data/DnD_BasicRules_2018.pdf:114:0', 'data/DnD_BasicRules_2018.pdf:19:0', 'data/DnD_BasicRules_2018.pdf:114:3', 'data/DnD_BasicRules_2018.pdf:160:0']
+llm: llama3
+response: Red, Green
+sources: ['data/DnD_BasicRules_2018.pdf:161:0', 'data/DnD_BasicRules_2018.pdf:114:0', 'data/DnD_BasicRules_2018.pdf:19:0', 'data/DnD_BasicRules_2018.pdf:114:3', 'data/DnD_BasicRules_2018.pdf:160:0']
+#+end_src
+
+How the context snagged an entirely different ultimate document chunk I've no clue right now but apparently there are super green dragons in addition to pull me over red dragons in DND. Who knew? Apparently not mistral or llama3 the first time...
+
+*** Reset the rag db
+
+Just remove France the *chroma* dir and repopulate it with whatever pdfs you want to query.
+
+#+begin_src sh
+$ rm -fr chroma
+#+end_src
+
+** Testing
+
+You can just copy *example/dnd.py* to something like *example_test.py* and customize the tests in whatever way necessary.
+
+Then just run pytest as normal with ollama running and the right data loaded into the rag db.
+
+#+begin_src sh
+$ pytest
+====================================================================================== test session starts =======================================================================================
+platform linux -- Python 3.11.9, pytest-8.1.1, pluggy-1.4.0
+rootdir: /home/mitch/src/pub/github.com/mitchty/teketeke
+plugins: anyio-4.3.0
+collected 2 items                                                                                                                                                                                
+
+test_dnd.py .                                                                                                                                                                              [ 50%]
+test_globals.py .                                                                                                                                                                          [100%]
+
+================================================================================= 2 passed in 100.10s (0:01:40) ==================================================================================
+#+end_src
+
+* Whats up with the name?
+
+Its the name of a Japanese yokai teketeke (テケテケ), think spirit basically, in this case its an onryu or vengeful spirit. After you find out about her she will come to you in a dream and if you answer her questions correctly she won't kill you by slicing you in half at the torso like her. So consider yourself warned and learned for having asked who teketeke is. Also don't be so nosy next time. No I won't tell you how to answer her right, good luck, if you answer wrong you'll be lightened of a lot of weight past the torso.
+
+I felt it fit well with the goal of unit testing llm's through python in a challenge/response/get it wrong and die format. Also she has no legs and python get it? Yeah I'm terrible with bad dad jokes.
